@@ -1,33 +1,22 @@
-from pynput import keyboard
-import pyperclip
-import pymysql
 import hashlib
 import random
 import urllib.parse
-import tkinter as tk
+import requests
 from tkinter import *
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 import time
+import tkinter as tk
+from pynput import keyboard
+import pyperclip
 
-#global var
-list = []
-"""
-A tool to help you translate easily
-
--single word : local database
--long sentence : Baidu API
-
-"""
 def baidu_translate(en_word):
-
-    #Info need to be
     q = en_word
-    appid = 'Your appid'
-    p_key = 'Your privatekey'
+
+    with open("user_config.txt", 'r', encoding="UTF-8") as user_config:
+        appid = user_config.readline().split("=")[1].lstrip().rstrip()
+        p_key = user_config.readline().split("=")[1].lstrip().rstrip()
+
     rand_num = str(random.randint(32768, 65536))
 
-    #make url , refer to https://api.fanyi.baidu.com/api/trans/product/apidoc
     combine_str = appid + q + rand_num + p_key
     sign = hashlib.md5(combine_str.encode(encoding='utf-8')).hexdigest()
     url_template = "http://api.fanyi.baidu.com/api/trans/vip/translate?"
@@ -35,80 +24,71 @@ def baidu_translate(en_word):
     url = url_template + param
     return url
 
-def show_translate(trans_word,size):
+
+def request_option():
+    option_list = {}
+    data = {}
+    headers = {}
+    proxies={}
+    try:
+        with open("proxies.txt", 'r',encoding='UTF-8') as config:
+            proxy = config.read()
+            proxies['http'] = proxy
+            proxies['https'] = proxy
+    except:
+        option_list['proxies'] = {}
+
+    option_list['data'] = data
+    option_list['headers'] = headers
+    option_list['proxies'] = proxies
+
+    return option_list
+
+def show_translate(trans_word,size,duration):
     root = Tk()
     root.title("Translation")
     root.geometry("800x200+600+0")
     root.wm_attributes('-topmost', 1)
     trans = StringVar()
     trans.set(trans_word)
-    tk.Label(root, textvariable=trans, font=("Times New Roman", size), justify='left', wraplength=800).place(x=10,
+    tk.Label(root, textvariable=trans, font=("Times New Roman", size), justify='left', wraplength=750).place(x=10,
                                                                                                            y=10)
     root.update()
     root.deiconify()
-    time.sleep(5)
+    time.sleep(duration)
     root.destroy()
+
+def main_opreation(en_word):
+    url = baidu_translate(en_word)
+    req_option = request_option()
+    trans_res = requests.request("GET", url, headers=req_option['headers'], data=req_option['data'], proxies=req_option['proxies'])
+    out_put = trans_res.text.encode().decode("unicode_escape")
+    show_info = out_put.split("\"dst\":")
+    show_info.remove(show_info[0])
+    middle_str = ""
+    for i in show_info:
+        i = i.split('\"}')[0].replace("\"", "")
+        middle_str = middle_str + i + "\n"
+    with open("display.txt", 'r', encoding="UTF-8") as display:
+        size = int(display.readline().rstrip().lstrip())
+        duration = int(display.readline().rstrip().lstrip())
+        show_translate(middle_str, size, duration)
 
 
 def on_press(key):
     global list
     list.append(key)
 
-    #only add ctrl to record list
     for i in list:
         if i != keyboard.Key.ctrl_r and i!=keyboard.Key.ctrl_l:
             list = []
 
-    #if 3 ctrl was pressed Continuously
     if len(list) == 3:
-        #query local database
-        conn = pymysql.connect(host='your host',
-                               user='your username',
-                               password='your password',
-                               database='your database')
-        cursor = conn.cursor()
         enword = pyperclip.paste()
-        re_enword = enword#.replace(' ','').replace('\'','')
-        res = 0
-        try:
-            res = cursor.execute("SELECT translation FROM <your database> WHERE word=\'" + re_enword + "\'")
-        except:
-            pass
-        if res:
-            res = cursor.fetchone()[0]
-            #toast.show_toast("Transation : ",res)
-            print(res)
-            show_translate(res,18)
-
-        else:
-            url = baidu_translate(enword)
-            chrome_driver.execute_script("window.location.href='" + url + "'")
-            try:
-                out_put = chrome_driver.find_element(By.TAG_NAME, 'pre').text.encode().decode("unicode_escape")
-                res = out_put.split("\"dst\":")
-                res.remove(res[0])
-                middle_str = ""
-                for i in res:
-                    i = i.split('\"}')[0].replace("\"", "")
-                    middle_str = middle_str + i + "\n"
-                    print(middle_str)
-                show_translate(middle_str,14)
-            except:
-                pass
-
-        cursor.close()
-        conn.close()
+        main_opreation(enword)
         list = []
 
-
-print("Connecting.........")
-option = webdriver.ChromeOptions()
-option.add_argument('--headless')
-chrome_driver = webdriver.Chrome(chrome_options=option)
-chrome_driver.get("http://www.baidu.com")
-
-print("Connected!")
-
-with keyboard.Listener(on_press=on_press) as lsn:
+list = []
+show_translate("程序开始运行。。。请复制需要翻译的单词，然后敲击三次Ctrl键翻译",25,5)
+with keyboard.Listener(on_release=on_press) as lsn:
     lsn.join()
-
