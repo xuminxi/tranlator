@@ -35,5 +35,54 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
-      run: |
-        curl https://api.day.app/wPS4MHbmHvUHqA9NTACb4D/test
+      run: |  
+
+          python3 << 'PY'
+          import time
+          import urllib.parse
+          import urllib.request
+
+          
+
+          sounds = [
+              "anticipate",
+              "bell",
+              "birdsong",
+              "bloom",
+              "calypso",
+              "chime",
+              "choo",
+              "descent",
+              "electronic",
+              "fanfare",
+              "glass",
+              "gotosleep",
+              "healthnotification",
+              "horn",
+              "ladder",
+              "mailsent",
+              "minuet",
+              "multiwayinvitation",
+              "newmail",
+              "newsflash",
+              "noir",
+              "paymentsuccess",
+              "shake",
+              "sherwoodforest",
+              "silence"
+          ]
+
+          for sound in sounds:
+              
+              body = urllib.parse.quote(f"当前铃声: {sound}")
+
+              url = f" https://api.day.app/wPS4MHbmHvUHqA9NTACb4D/{body}?sound={sound}"
+
+              try:
+                  with urllib.request.urlopen(url, timeout=15) as response:
+                      print(sound, response.status)
+              except Exception as e:
+                  print(sound, "ERROR", e)
+
+              time.sleep(5)
+          PY
